@@ -191,6 +191,12 @@
         <span>🎃 HallowWatch 31 • Curation for October</span>
       </div>
       <div class="footer-admin-links">
+        <button class="footer-btn" onclick="exportReviewsJson()" title="Download reviews.json to commit to GitHub">
+          📥 Export reviews.json
+        </button>
+        <button class="footer-btn" id="cloud-sync-btn" onclick="openCloudSyncModal()" title="Configure live real-time cloud sync across friend devices">
+          ☁️ Sync: <span id="sync-status-indicator">GitHub / Local</span>
+        </button>
         <button class="footer-btn" onclick="resetPersonalProgress()" title="Unmark all watched movies on this device">
           🔄 Reset My Progress
         </button>
@@ -298,6 +304,51 @@
           <button id="modal-watch-toggle" class="btn btn-primary">
             Mark as Watched
           </button>
+        </div>
+      </div>
+    </div>
+  <!-- Cloud Sync Settings Modal -->
+  <div class="modal-backdrop" id="cloud-sync-modal">
+    <div class="modal-dialog" style="max-width: 540px;">
+      <button class="modal-close-btn" onclick="closeCloudSyncModal()" aria-label="Close modal">✕</button>
+      <div class="modal-meta-bar">
+        <span class="date-pill">Multi-Device Sync</span>
+        <span class="tag-badge" id="cloud-sync-badge">💾 Local & GitHub reviews.json</span>
+      </div>
+      <h2 class="modal-title cinzel" style="font-size: 1.5rem; margin-bottom: 8px;">Sync Comments Across Friends</h2>
+      <p style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.5; margin-bottom: 18px;">
+        GitHub Pages is a static host. You have two easy ways to share reviews across multiple friends:
+      </p>
+
+      <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 14px; margin-bottom: 16px;">
+        <div style="font-weight: 700; color: var(--pumpkin-400); font-size: 0.88rem; margin-bottom: 4px;">
+          Method 1: Commit <code>reviews.json</code> to GitHub (Zero setup)
+        </div>
+        <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 10px;">
+          Click "Export reviews.json" in the footer, then upload or push <code>reviews.json</code> into your repository alongside <code>index.html</code>. Any friend opening your GitHub Pages link will automatically load all reviews!
+        </p>
+        <button class="btn btn-secondary" onclick="exportReviewsJson()" style="padding: 6px 14px; font-size: 0.8rem;">
+          📥 Download Current reviews.json
+        </button>
+      </div>
+
+      <div style="background: rgba(249, 115, 22, 0.06); border: 1px solid rgba(249, 115, 22, 0.25); border-radius: var(--radius-md); padding: 14px; margin-bottom: 16px;">
+        <div style="font-weight: 700; color: #fb923c; font-size: 0.88rem; margin-bottom: 4px;">
+          Method 2: Live Real-Time Sync (Free Firebase Database)
+        </div>
+        <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 10px;">
+          Want reviews to appear live in real-time on everyone's phones without pushing files to GitHub? Paste a free Firebase Realtime Database URL below:
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <input type="url" id="cloud-db-url-input" class="name-input" placeholder="https://your-marathon-default-rtdb.firebaseio.com" style="font-size: 0.85rem;">
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-primary" onclick="saveCloudDbUrl()" style="flex: 1; justify-content: center; padding: 8px;">
+              Save & Connect ⚡
+            </button>
+            <button class="btn btn-secondary" onclick="clearCloudDbUrl()" style="padding: 8px 12px;">
+              Disconnect
+            </button>
+          </div>
         </div>
       </div>
     </div>

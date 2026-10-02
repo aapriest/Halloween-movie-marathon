@@ -7,7 +7,8 @@
 const STORAGE_KEYS = {
   WATCHED: 'hallowwatch_watched_ids',     // Kept private to each device
   REVIEWS: 'hallowwatch_friend_reviews',   // Shared friend reviews & ratings
-  USER_NAME: 'hallowwatch_user_name'       // Cached user name for frictionless commenting
+  USER_NAME: 'hallowwatch_user_name',      // Cached user name for frictionless commenting
+  CLOUD_DB_URL: 'hallowwatch_cloud_db_url' // Optional Realtime DB URL
 };
 
 // Starter Reviews
@@ -29,6 +30,15 @@ const DEFAULT_REVIEWS = {
       comment: "Peak 80s practical effects! Slimer and the Stay Puft Marshmallow Man are timeless comfort horror.",
       date: "Oct 2"
     }
+  ],
+  16: [
+    {
+      id: "rev_16_1",
+      author: "Alex",
+      rating: 5,
+      comment: "Ash Williams with a chainsaw arm is pure Halloween joy. The laughing deer head scene is comedy horror perfection!",
+      date: "Oct 16"
+    }
   ]
 };
 
@@ -45,6 +55,7 @@ const state = {
   watchedIds: new Set(JSON.parse(localStorage.getItem(STORAGE_KEYS.WATCHED) || '[]')),
   reviews: JSON.parse(localStorage.getItem(STORAGE_KEYS.REVIEWS)) || DEFAULT_REVIEWS,
   userName: localStorage.getItem(STORAGE_KEYS.USER_NAME) || '',
+  cloudDbUrl: localStorage.getItem(STORAGE_KEYS.CLOUD_DB_URL) || '',
   currentModalMovieId: null,
   activeFormRating: 5
 };
@@ -89,6 +100,18 @@ document.addEventListener('DOMContentLoaded', () => {
   renderAllViews();
   updateStats();
   updateCatchupIndicator();
+  updateSyncStatusUI();
+
+  // Asynchronously load repository-committed reviews and cloud reviews
+  loadRepoReviews();
+  loadCloudReviews();
+
+  // Periodically poll cloud reviews every 45s if active
+  setInterval(() => {
+    if (state.cloudDbUrl) {
+      loadCloudReviews();
+    }
+  }, 45000);
 });
 
 // --------------------------------------------------------------------------
@@ -241,6 +264,19 @@ function initEventListeners() {
     });
   }
 
+  // Cloud Sync Modal Listeners
+  const syncModal = document.getElementById('cloud-sync-modal');
+  if (syncModal) {
+    syncModal.addEventListener('click', (e) => {
+      if (e.target === syncModal) closeCloudSyncModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && syncModal.classList.contains('open')) {
+        closeCloudSyncModal();
+      }
+    });
+  }
+
   // Review Star Selector in Form
   const starSelector = document.getElementById('review-star-selector');
   if (starSelector) {
@@ -303,6 +339,7 @@ function handleReviewSubmit(e) {
   }
   state.reviews[movieId].unshift(newReview);
   saveReviews();
+  pushCloudReviews();
 
   commentInput.value = '';
   renderModalReviews(movieId);
@@ -320,6 +357,7 @@ function deleteReview(movieId, reviewId) {
       delete state.reviews[movieId];
     }
     saveReviews();
+    pushCloudReviews();
     renderModalReviews(movieId);
     renderAllViews();
     renderHeroSpotlight();
@@ -332,6 +370,7 @@ function resetAllReviews() {
     localStorage.removeItem(STORAGE_KEYS.REVIEWS);
     state.reviews = JSON.parse(JSON.stringify(DEFAULT_REVIEWS));
     saveReviews();
+    pushCloudReviews();
     renderAllViews();
     renderHeroSpotlight();
     if (state.currentModalMovieId) renderModalReviews(state.currentModalMovieId);
@@ -349,6 +388,158 @@ function resetPersonalProgress() {
     renderAllViews();
     showToast("Personal watch progress reset");
   }
+}
+
+// --------------------------------------------------------------------------
+// Multi-Device & Cloud Comment Synchronization
+// --------------------------------------------------------------------------
+function updateSyncStatusUI() {
+  const indicator = document.getElementById('sync-status-indicator');
+  const badge = document.getElementById('cloud-sync-badge');
+  const input = document.getElementById('cloud-db-url-input');
+
+  if (input && state.cloudDbUrl) {
+    input.value = state.cloudDbUrl;
+  }
+
+  if (state.cloudDbUrl) {
+    if (indicator) indicator.textContent = '🟢 Cloud Live';
+    if (badge) {
+      badge.textContent = '🟢 Realtime Cloud Sync Active';
+      badge.style.color = '#34d399';
+    }
+  } else {
+    if (indicator) indicator.textContent = 'GitHub / Local';
+    if (badge) {
+      badge.textContent = '💾 Local & GitHub reviews.json';
+      badge.style.color = '#fb923c';
+    }
+  }
+}
+
+async function loadRepoReviews() {
+  try {
+    const res = await fetch('reviews.json?t=' + Date.now());
+    if (res.ok) {
+      const repoReviews = await res.json();
+      if (repoReviews && typeof repoReviews === 'object') {
+        mergeReviews(repoReviews);
+        renderAllViews();
+        renderHeroSpotlight();
+        if (state.currentModalMovieId) renderModalReviews(state.currentModalMovieId);
+      }
+    }
+  } catch (e) {
+    console.log('reviews.json not found in repo or fetch failed', e);
+  }
+}
+
+async function loadCloudReviews() {
+  if (!state.cloudDbUrl) return;
+  try {
+    const cleanUrl = state.cloudDbUrl.replace(/\/+$/, '');
+    const res = await fetch(`${cleanUrl}/reviews.json`);
+    if (res.ok) {
+      const cloudData = await res.json();
+      if (cloudData && typeof cloudData === 'object') {
+        mergeReviews(cloudData);
+        renderAllViews();
+        renderHeroSpotlight();
+        if (state.currentModalMovieId) renderModalReviews(state.currentModalMovieId);
+      }
+    }
+  } catch (e) {
+    console.warn('Cloud reviews sync error:', e);
+  }
+}
+
+async function pushCloudReviews() {
+  if (!state.cloudDbUrl) return;
+  try {
+    const cleanUrl = state.cloudDbUrl.replace(/\/+$/, '');
+    await fetch(`${cleanUrl}/reviews.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state.reviews)
+    });
+  } catch (e) {
+    console.warn('Failed to push reviews to cloud:', e);
+  }
+}
+
+function mergeReviews(remoteReviews) {
+  if (!remoteReviews || typeof remoteReviews !== 'object') return;
+  let changed = false;
+  for (const movieId in remoteReviews) {
+    if (!state.reviews[movieId]) {
+      state.reviews[movieId] = [];
+    }
+    const existingIds = new Set(state.reviews[movieId].map(r => r.id));
+    const toAdd = remoteReviews[movieId].filter(r => !existingIds.has(r.id));
+    if (toAdd.length > 0) {
+      state.reviews[movieId].push(...toAdd);
+      changed = true;
+    }
+  }
+  if (changed) {
+    saveReviews();
+  }
+}
+
+function exportReviewsJson() {
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.reviews, null, 2));
+  const dlAnchor = document.createElement('a');
+  dlAnchor.setAttribute("href", dataStr);
+  dlAnchor.setAttribute("download", "reviews.json");
+  document.body.appendChild(dlAnchor);
+  dlAnchor.click();
+  dlAnchor.remove();
+  showToast("📥 reviews.json downloaded! Commit & push to GitHub to share with everyone.");
+}
+
+function openCloudSyncModal() {
+  const modal = document.getElementById('cloud-sync-modal');
+  if (modal) {
+    updateSyncStatusUI();
+    modal.classList.add('open');
+  }
+}
+
+function closeCloudSyncModal() {
+  const modal = document.getElementById('cloud-sync-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+function saveCloudDbUrl() {
+  const input = document.getElementById('cloud-db-url-input');
+  if (!input) return;
+  let url = input.value.trim();
+  if (url) {
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    state.cloudDbUrl = url;
+    localStorage.setItem(STORAGE_KEYS.CLOUD_DB_URL, url);
+    updateSyncStatusUI();
+    showToast("Connecting to cloud database...");
+    loadCloudReviews().then(() => {
+      pushCloudReviews().then(() => {
+        showToast("⚡ Cloud Sync connected & synchronized!");
+        closeCloudSyncModal();
+      });
+    });
+  } else {
+    clearCloudDbUrl();
+  }
+}
+
+function clearCloudDbUrl() {
+  state.cloudDbUrl = '';
+  localStorage.removeItem(STORAGE_KEYS.CLOUD_DB_URL);
+  const input = document.getElementById('cloud-db-url-input');
+  if (input) input.value = '';
+  updateSyncStatusUI();
+  showToast("Cloud sync disconnected. Operating in local & GitHub mode.");
 }
 
 // --------------------------------------------------------------------------

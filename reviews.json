@@ -1,0 +1,29 @@
+{
+  "1": [
+    {
+      "id": "rev_1_1",
+      "author": "Alex",
+      "rating": 5,
+      "comment": "Tim Burton at his atmospheric peak. The foggy woods, jack-o'-lanterns, and gothic sets make this the ultimate October 1 kickoff.",
+      "date": "Oct 1"
+    }
+  ],
+  "2": [
+    {
+      "id": "rev_2_1",
+      "author": "Alex",
+      "rating": 5,
+      "comment": "Peak 80s practical effects! Slimer and the Stay Puft Marshmallow Man are timeless comfort horror.",
+      "date": "Oct 2"
+    }
+  ],
+  "16": [
+    {
+      "id": "rev_16_1",
+      "author": "Alex",
+      "rating": 5,
+      "comment": "Ash Williams with a chainsaw arm is pure Halloween joy. The laughing deer head scene is comedy horror perfection!",
+      "date": "Oct 16"
+    }
+  ]
+}

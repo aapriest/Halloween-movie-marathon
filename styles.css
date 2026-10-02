@@ -1451,3 +1451,410 @@ h1, h2, h3, .cinzel {
     opacity: 1;
   }
 }
+
+/* ==========================================================================
+   MOBILE & TABLET RESPONSIVE ENHANCEMENTS
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  /* Layout & Spacing */
+  .app-container {
+    padding: 14px 12px 60px;
+  }
+
+  .site-header {
+    padding: 14px 6px 10px;
+    margin-bottom: 16px;
+  }
+
+  .site-title {
+    font-size: 2.1rem;
+    line-height: 1.15;
+  }
+
+  .site-subtitle {
+    font-size: 0.9rem;
+    line-height: 1.45;
+    margin-bottom: 14px;
+  }
+
+  .header-badge {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    margin-bottom: 10px;
+  }
+
+  .flexibility-notice {
+    padding: 10px 12px;
+    font-size: 0.82rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  /* Stats Dashboard */
+  .marathon-stats-card {
+    padding: 16px 12px;
+    margin-bottom: 20px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .stat-item {
+    padding: 10px 6px;
+  }
+
+  .stat-value {
+    font-size: 1.3rem;
+  }
+
+  .stat-label {
+    font-size: 0.72rem;
+  }
+
+  /* Hero Spotlight */
+  .hero-spotlight {
+    padding: 16px 14px;
+    margin-bottom: 20px;
+    border-radius: var(--radius-md);
+  }
+
+  .hero-header-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .hero-header-left {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .hero-header-right {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .hero-title {
+    font-size: 1.65rem;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+
+  .hero-meta {
+    font-size: 0.85rem;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .hero-synopsis {
+    font-size: 0.92rem;
+    line-height: 1.45;
+    margin-bottom: 12px;
+  }
+
+  .hero-rationale-box,
+  .hero-quote-box {
+    padding: 8px 10px;
+    font-size: 0.84rem;
+    margin-bottom: 12px;
+  }
+
+  .hero-actions {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .hero-actions .btn {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 16px;
+    font-size: 0.92rem;
+  }
+
+  /* Controls & Filter Bar */
+  .theme-ribbon {
+    gap: 8px;
+    padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .theme-ribbon::-webkit-scrollbar {
+    display: none;
+  }
+
+  .theme-tab {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+  }
+
+  .filter-bar {
+    padding: 12px;
+    gap: 10px;
+    flex-direction: column;
+    align-items: stretch;
+    border-radius: var(--radius-md);
+  }
+
+  .search-box {
+    min-width: 100%;
+    width: 100%;
+  }
+
+  .search-input {
+    padding: 11px 12px 11px 38px;
+    font-size: 16px; /* Prevents auto-zoom on iOS */
+  }
+
+  .filter-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .select-filter {
+    width: 100%;
+    padding: 10px 8px;
+    font-size: 14px;
+    min-height: 42px;
+  }
+
+  .view-switcher {
+    width: 100%;
+    display: flex;
+  }
+
+  .view-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 9px 4px;
+    font-size: 0.8rem;
+  }
+
+  /* Movie Cards Grid */
+  .movies-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .movie-card {
+    padding: 16px 14px;
+    border-radius: var(--radius-md);
+  }
+
+  .movie-card-header {
+    margin-bottom: 8px;
+  }
+
+  .watch-checkbox-btn {
+    width: 42px;
+    height: 42px;
+    font-size: 1.15rem;
+  }
+
+  .movie-title {
+    font-size: 1.2rem;
+    line-height: 1.25;
+  }
+
+  .movie-tags-row {
+    gap: 5px;
+    margin-bottom: 8px;
+  }
+
+  .tag-badge, .genre-tag, .scare-badge, .group-rating-badge {
+    font-size: 0.7rem;
+    padding: 3px 7px;
+  }
+
+  .card-synopsis {
+    font-size: 0.86rem;
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+
+  .card-rationale-snippet {
+    font-size: 0.78rem;
+    margin-bottom: 12px;
+    padding-left: 8px;
+  }
+
+  .movie-card-footer {
+    padding-top: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .card-btn {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+  }
+
+  /* Modal transformed into a Mobile Bottom Sheet */
+  .modal-backdrop {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-dialog {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    max-height: 90vh;
+    padding: 22px 16px 32px;
+    margin: 0;
+    width: 100%;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+  }
+
+  .modal-dialog::after {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 38px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 9999px;
+  }
+
+  .modal-close-btn {
+    top: 14px;
+    right: 14px;
+    width: 34px;
+    height: 34px;
+  }
+
+  .modal-title {
+    font-size: 1.5rem;
+    line-height: 1.2;
+    margin-top: 4px;
+  }
+
+  .modal-director {
+    font-size: 0.88rem;
+    margin-bottom: 12px;
+  }
+
+  .modal-synopsis {
+    padding: 12px 14px;
+    font-size: 0.92rem;
+    line-height: 1.48;
+  }
+
+  .modal-info-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .info-grid-card {
+    padding: 10px 14px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .name-input, .comment-input {
+    font-size: 16px !important; /* Prevents auto-zoom on iOS Safari */
+    padding: 11px 12px;
+  }
+
+  .star-rating-control {
+    justify-content: flex-start;
+    font-size: 1.8rem;
+    gap: 8px;
+  }
+
+  .star-btn {
+    padding: 4px 6px;
+  }
+
+  .delete-review-btn {
+    padding: 6px 10px;
+    font-size: 0.95rem;
+  }
+
+  /* Modal Footer */
+  .modal-dialog > div:last-child {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .modal-dialog > div:last-child > div {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .modal-dialog > div:last-child .btn {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+  }
+
+  /* Site Footer */
+  .site-footer {
+    flex-direction: column;
+    text-align: center;
+    gap: 14px;
+    margin-top: 40px;
+  }
+
+  .footer-admin-links {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .footer-btn {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+
+  .toast-container {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+  }
+
+  .toast {
+    font-size: 0.85rem;
+    padding: 10px 16px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 380px) {
+  .site-title {
+    font-size: 1.8rem;
+  }
+
+  .filter-group {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
