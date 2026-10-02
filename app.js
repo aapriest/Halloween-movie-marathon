@@ -1,39 +1,81 @@
 /**
  * HallowWatch 31 - Core Web Application Logic
- * Interactivity, Filtering, Calendar, Storage Persistence, and Stats Dashboard
+ * Original Home Page Layout + Enhanced Expanded Cards/Modals
  */
 
 // Local Storage Keys
 const STORAGE_KEYS = {
-  WATCHED: 'hallowwatch_watched_ids',
-  RATINGS: 'hallowwatch_movie_ratings',
-  NOTES: 'hallowwatch_movie_notes'
+  WATCHED: 'hallowwatch_watched_ids',     // Kept private to each device
+  REVIEWS: 'hallowwatch_friend_reviews',   // Shared friend reviews & ratings
+  USER_NAME: 'hallowwatch_user_name'       // Cached user name for frictionless commenting
+};
+
+// Starter Reviews
+const DEFAULT_REVIEWS = {
+  1: [
+    {
+      id: "rev_1_1",
+      author: "Alex",
+      rating: 5,
+      comment: "Tim Burton at his atmospheric peak. The foggy woods, jack-o'-lanterns, and gothic sets make this the ultimate October 1 kickoff.",
+      date: "Oct 1"
+    }
+  ],
+  2: [
+    {
+      id: "rev_2_1",
+      author: "Alex",
+      rating: 5,
+      comment: "Peak 80s practical effects! Slimer and the Stay Puft Marshmallow Man are timeless comfort horror.",
+      date: "Oct 2"
+    }
+  ]
 };
 
 // Global App State
 const state = {
   activeTheme: 'all',
+  activeGenre: 'all',
+  activeScare: 'all',
   searchQuery: '',
   statusFilter: 'all',
   sortMode: 'date-asc',
   activeView: 'grid', // 'grid' | 'calendar' | 'timeline'
+  heroMode: 'today',  // 'today' | 'next'
   watchedIds: new Set(JSON.parse(localStorage.getItem(STORAGE_KEYS.WATCHED) || '[]')),
-  ratings: JSON.parse(localStorage.getItem(STORAGE_KEYS.RATINGS) || '{}'),
-  notes: JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTES) || '{}'),
-  currentModalMovieId: null
+  reviews: JSON.parse(localStorage.getItem(STORAGE_KEYS.REVIEWS)) || DEFAULT_REVIEWS,
+  userName: localStorage.getItem(STORAGE_KEYS.USER_NAME) || '',
+  currentModalMovieId: null,
+  activeFormRating: 5
 };
 
-// Save state helpers
+// --------------------------------------------------------------------------
+// Storage Helpers
+// --------------------------------------------------------------------------
 function saveWatched() {
   localStorage.setItem(STORAGE_KEYS.WATCHED, JSON.stringify(Array.from(state.watchedIds)));
 }
 
-function saveRatings() {
-  localStorage.setItem(STORAGE_KEYS.RATINGS, JSON.stringify(state.ratings));
+function saveReviews() {
+  localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(state.reviews));
 }
 
-function saveNotes() {
-  localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(state.notes));
+function saveUserName(name) {
+  state.userName = name;
+  localStorage.setItem(STORAGE_KEYS.USER_NAME, name);
+}
+
+// --------------------------------------------------------------------------
+// Review & Average Rating Helpers
+// --------------------------------------------------------------------------
+function getMovieRatingData(movieId) {
+  const movieReviews = state.reviews[movieId] || [];
+  if (movieReviews.length === 0) {
+    return { average: null, count: 0 };
+  }
+  const sum = movieReviews.reduce((acc, r) => acc + (r.rating || 5), 0);
+  const avg = (sum / movieReviews.length).toFixed(1);
+  return { average: parseFloat(avg), count: movieReviews.length };
 }
 
 // --------------------------------------------------------------------------
@@ -46,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderHeroSpotlight();
   renderAllViews();
   updateStats();
+  updateCatchupIndicator();
 });
 
 // --------------------------------------------------------------------------
@@ -70,7 +113,7 @@ function initAtmosphere() {
     speedY: - (Math.random() * 0.45 + 0.15),
     speedX: (Math.random() - 0.5) * 0.3,
     alpha: Math.random() * 0.6 + 0.2,
-    color: Math.random() > 0.4 ? '249, 115, 22' : '168, 85, 247' // orange or purple
+    color: Math.random() > 0.4 ? '249, 115, 22' : '168, 85, 247'
   }));
 
   function animate() {
@@ -124,7 +167,7 @@ function initThemeRibbon() {
 }
 
 // --------------------------------------------------------------------------
-// Event Listeners (Search, Filter, Sort, View Modes, Modal)
+// Event Listeners (Search, Filters, Sort, View Modes, Modal, Reviews)
 // --------------------------------------------------------------------------
 function initEventListeners() {
   // Search Bar
@@ -132,6 +175,24 @@ function initEventListeners() {
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
       state.searchQuery = e.target.value.toLowerCase().trim();
+      renderAllViews();
+    });
+  }
+
+  // Genre Filter
+  const genreFilter = document.getElementById('genre-filter');
+  if (genreFilter) {
+    genreFilter.addEventListener('change', (e) => {
+      state.activeGenre = e.target.value;
+      renderAllViews();
+    });
+  }
+
+  // Scare Intensity Filter
+  const scareFilter = document.getElementById('scare-filter');
+  if (scareFilter) {
+    scareFilter.addEventListener('change', (e) => {
+      state.activeScare = e.target.value;
       renderAllViews();
     });
   }
@@ -180,32 +241,113 @@ function initEventListeners() {
     });
   }
 
-  // Star Rating Click Handling in Modal
-  const starsContainer = document.getElementById('modal-stars');
-  if (starsContainer) {
-    starsContainer.querySelectorAll('.star-btn').forEach(star => {
+  // Review Star Selector in Form
+  const starSelector = document.getElementById('review-star-selector');
+  if (starSelector) {
+    const stars = starSelector.querySelectorAll('.star-btn');
+    stars.forEach(star => {
       star.addEventListener('click', () => {
-        const rating = parseInt(star.getAttribute('data-star'), 10);
-        if (state.currentModalMovieId) {
-          state.ratings[state.currentModalMovieId] = rating;
-          saveRatings();
-          updateModalStars(rating);
-          renderAllViews();
-          showToast(`Rated ${rating} Star${rating > 1 ? 's' : ''}! ★`);
-        }
+        const val = parseInt(star.getAttribute('data-star'), 10);
+        setFormStarRating(val);
       });
     });
   }
+}
 
-  // Notes Auto-save
-  const notesTextarea = document.getElementById('modal-notes');
-  if (notesTextarea) {
-    notesTextarea.addEventListener('input', (e) => {
-      if (state.currentModalMovieId) {
-        state.notes[state.currentModalMovieId] = e.target.value;
-        saveNotes();
-      }
-    });
+function setFormStarRating(val) {
+  state.activeFormRating = val;
+  const stars = document.querySelectorAll('#review-star-selector .star-btn');
+  stars.forEach((s, idx) => {
+    if (idx < val) {
+      s.classList.add('active');
+    } else {
+      s.classList.remove('active');
+    }
+  });
+}
+
+// --------------------------------------------------------------------------
+// Review Submission & Deletion Handlers
+// --------------------------------------------------------------------------
+function handleReviewSubmit(e) {
+  e.preventDefault();
+  const movieId = state.currentModalMovieId;
+  if (!movieId) return;
+
+  const nameInput = document.getElementById('reviewer-name');
+  const commentInput = document.getElementById('reviewer-comment');
+
+  const author = nameInput.value.trim();
+  const comment = commentInput.value.trim();
+
+  if (!author || !comment) {
+    showToast("Please provide both your name and review!");
+    return;
+  }
+
+  saveUserName(author);
+
+  const now = new Date();
+  const dateStr = `Oct ${now.getDate()}`;
+
+  const newReview = {
+    id: `rev_${Date.now()}`,
+    author: author,
+    rating: state.activeFormRating || 5,
+    comment: comment,
+    date: dateStr
+  };
+
+  if (!state.reviews[movieId]) {
+    state.reviews[movieId] = [];
+  }
+  state.reviews[movieId].unshift(newReview);
+  saveReviews();
+
+  commentInput.value = '';
+  renderModalReviews(movieId);
+  renderAllViews();
+  renderHeroSpotlight();
+  showToast(`🎃 Review posted by ${author}!`);
+}
+
+function deleteReview(movieId, reviewId) {
+  if (!confirm("Are you sure you want to delete this comment?")) return;
+
+  if (state.reviews[movieId]) {
+    state.reviews[movieId] = state.reviews[movieId].filter(r => r.id !== reviewId);
+    if (state.reviews[movieId].length === 0) {
+      delete state.reviews[movieId];
+    }
+    saveReviews();
+    renderModalReviews(movieId);
+    renderAllViews();
+    renderHeroSpotlight();
+    showToast("Comment deleted 🗑️");
+  }
+}
+
+function resetAllReviews() {
+  if (confirm("Reset all friend comments back to initial defaults?")) {
+    localStorage.removeItem(STORAGE_KEYS.REVIEWS);
+    state.reviews = JSON.parse(JSON.stringify(DEFAULT_REVIEWS));
+    saveReviews();
+    renderAllViews();
+    renderHeroSpotlight();
+    if (state.currentModalMovieId) renderModalReviews(state.currentModalMovieId);
+    showToast("All reviews reset to default");
+  }
+}
+
+function resetPersonalProgress() {
+  if (confirm("Reset your personal watch progress? All movies will be unmarked.")) {
+    localStorage.removeItem(STORAGE_KEYS.WATCHED);
+    state.watchedIds.clear();
+    saveWatched();
+    updateStats();
+    renderHeroSpotlight();
+    renderAllViews();
+    showToast("Personal watch progress reset");
   }
 }
 
@@ -213,16 +355,35 @@ function initEventListeners() {
 // Filter & Sort Logic
 // --------------------------------------------------------------------------
 function getFilteredMovies() {
+  const today = new Date();
+  const currentMonth = today.getMonth();
+  const currentDay = (currentMonth === 9) ? today.getDate() : 2;
+
   return HALLOWEEN_MOVIES.filter(movie => {
     // Theme filter
     if (state.activeTheme !== 'all' && movie.themeKey !== state.activeTheme) {
       return false;
     }
 
+    // Genre filter
+    if (state.activeGenre !== 'all' && movie.genreCategory !== state.activeGenre) {
+      return false;
+    }
+
+    // Scare intensity filter
+    if (state.activeScare !== 'all') {
+      if (state.activeScare === 'cozy' && movie.scareRating !== 1) return false;
+      if (state.activeScare === 'mild' && movie.scareRating !== 2) return false;
+      if (state.activeScare === 'moderate' && movie.scareRating !== 3) return false;
+      if (state.activeScare === 'high' && movie.scareRating !== 4) return false;
+      if (state.activeScare === 'extreme' && movie.scareRating !== 5) return false;
+    }
+
     // Status filter
     const isWatched = state.watchedIds.has(movie.id);
     if (state.statusFilter === 'watched' && !isWatched) return false;
     if (state.statusFilter === 'unwatched' && isWatched) return false;
+    if (state.statusFilter === 'catchup' && (isWatched || movie.dayNumber >= currentDay)) return false;
     if (state.statusFilter === 'first' && movie.status !== 'First Watch') return false;
     if (state.statusFilter === 'rewatch' && movie.status !== 'Rewatch') return false;
 
@@ -230,10 +391,12 @@ function getFilteredMovies() {
     if (state.searchQuery) {
       const matchTitle = movie.title.toLowerCase().includes(state.searchQuery);
       const matchDirector = movie.director.toLowerCase().includes(state.searchQuery);
+      const matchSynopsis = (movie.synopsis || '').toLowerCase().includes(state.searchQuery);
       const matchNotes = movie.notes.toLowerCase().includes(state.searchQuery);
       const matchYear = movie.year.includes(state.searchQuery);
       const matchSubgenre = movie.subgenre.toLowerCase().includes(state.searchQuery);
-      if (!matchTitle && !matchDirector && !matchNotes && !matchYear && !matchSubgenre) {
+      const matchVibe = (movie.scareVibe || '').toLowerCase().includes(state.searchQuery);
+      if (!matchTitle && !matchDirector && !matchSynopsis && !matchNotes && !matchYear && !matchSubgenre && !matchVibe) {
         return false;
       }
     }
@@ -245,6 +408,15 @@ function getFilteredMovies() {
         return a.dayNumber - b.dayNumber;
       case 'date-desc':
         return b.dayNumber - a.dayNumber;
+      case 'rating-desc': {
+        const ratingA = getMovieRatingData(a.id).average || 0;
+        const ratingB = getMovieRatingData(b.id).average || 0;
+        return ratingB - ratingA;
+      }
+      case 'scare-asc':
+        return a.scareRating - b.scareRating;
+      case 'scare-desc':
+        return b.scareRating - a.scareRating;
       case 'runtime-asc':
         return a.runtime - b.runtime;
       case 'runtime-desc':
@@ -279,7 +451,7 @@ function renderAllViews() {
 }
 
 // --------------------------------------------------------------------------
-// 1. GRID VIEW RENDERER
+// 1. GRID VIEW RENDERER (ORIGINAL BEAUTIFUL CARDS)
 // --------------------------------------------------------------------------
 function renderMoviesGrid() {
   const container = document.getElementById('grid-view');
@@ -290,8 +462,8 @@ function renderMoviesGrid() {
     container.innerHTML = `
       <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-muted);">
         <div style="font-size: 3rem; margin-bottom: 12px;">👻</div>
-        <h3>No spooky films found</h3>
-        <p>Try broadening your search or resetting active filters.</p>
+        <h3>No spooky films match this filter</h3>
+        <p>Try resetting active genre, scare level, or search filters.</p>
       </div>
     `;
     return;
@@ -299,8 +471,7 @@ function renderMoviesGrid() {
 
   container.innerHTML = movies.map(movie => {
     const isWatched = state.watchedIds.has(movie.id);
-    const rating = state.ratings[movie.id] || 0;
-    const ratingStars = rating > 0 ? '★'.repeat(rating) + '☆'.repeat(5 - rating) : '';
+    const { average, count } = getMovieRatingData(movie.id);
 
     return `
       <div class="movie-card ${isWatched ? 'is-watched' : ''}" 
@@ -312,7 +483,7 @@ function renderMoviesGrid() {
             <span class="day-badge-dow">${movie.dayOfWeek}</span>
           </div>
           <button class="watch-checkbox-btn ${isWatched ? 'checked' : ''}" 
-                  title="${isWatched ? 'Mark as unwatched' : 'Mark as watched'}"
+                  title="${isWatched ? 'Mark as unwatched on your device' : 'Mark as watched on your device'}"
                   onclick="event.stopPropagation(); toggleWatched(${movie.id})">
             ${isWatched ? '✓' : '○'}
           </button>
@@ -326,16 +497,23 @@ function renderMoviesGrid() {
             <span class="tag-badge ${movie.status === 'First Watch' ? 'tag-first-watch' : 'tag-rewatch'}">
               ${movie.status}
             </span>
+            <span class="genre-tag">${movie.genreCategory}</span>
+            <span class="scare-badge scare-level-${movie.scareRating}">
+              🎃 ${movie.scareRating}/5 ${movie.scareLabel}
+            </span>
             <span class="tag-badge tag-runtime">⏱ ${movie.runtime}m</span>
-            <span class="tag-badge tag-runtime">${movie.year}</span>
+            ${count > 0 ? `<span class="tag-badge group-rating-badge">★ ${average} (${count})</span>` : ''}
           </div>
 
-          <p class="movie-rationale">${movie.notes}</p>
+          <p class="card-synopsis">${movie.synopsis}</p>
+          <p class="card-rationale-snippet">"${movie.notes}"</p>
         </div>
 
         <div class="movie-card-footer">
-          <span>🎬 ${movie.director}</span>
-          ${ratingStars ? `<span class="user-rating-display">${ratingStars}</span>` : `<span style="opacity: 0.5;">#${movie.dayNumber} of 31</span>`}
+          <span>🎬 ${movie.director} (${movie.year})</span>
+          <span style="color: var(--pumpkin-400); font-weight: 600;">
+            ${count > 0 ? `💬 ${count} Review${count > 1 ? 's' : ''}` : `Day ${movie.dayNumber}`}
+          </span>
         </div>
       </div>
     `;
@@ -349,10 +527,7 @@ function renderCalendarView() {
   const container = document.getElementById('calendar-grid');
   if (!container) return;
 
-  // In 2026, Oct 1 is Thursday. Let's make standard Sunday - Saturday headers:
-  // Sun(0), Mon(1), Tue(2), Wed(3), Thu(4), Fri(5), Sat(6)
-  // Oct 1 is Thursday -> 4 empty padding cells before Oct 1!
-  const leadingBlanks = 4; 
+  const leadingBlanks = 4; // Oct 1 is Thursday
   let html = '';
 
   for (let i = 0; i < leadingBlanks; i++) {
@@ -364,7 +539,8 @@ function renderCalendarView() {
   HALLOWEEN_MOVIES.forEach(movie => {
     const isWatched = state.watchedIds.has(movie.id);
     const matchesFilter = getFilteredMovies().some(m => m.id === movie.id);
-    const opacityStyle = matchesFilter ? '' : 'opacity: 0.3; filter: grayscale(80%);';
+    const opacityStyle = matchesFilter ? '' : 'opacity: 0.25; filter: grayscale(90%);';
+    const { average } = getMovieRatingData(movie.id);
 
     html += `
       <div class="calendar-cell ${isWatched ? 'is-watched' : ''}" 
@@ -373,20 +549,26 @@ function renderCalendarView() {
         <div class="calendar-cell-top">
           <span class="cal-day-num">${movie.dayNumber}</span>
           <span class="cal-dow">${movie.dayOfWeek}</span>
-          <span onclick="event.stopPropagation(); toggleWatched(${movie.id});" style="cursor: pointer; font-size: 0.95rem;">
+          <span onclick="event.stopPropagation(); toggleWatched(${movie.id});" 
+                title="Mark watched on your device"
+                style="cursor: pointer; font-size: 0.95rem;">
             ${isWatched ? '💚' : '🤍'}
           </span>
         </div>
         <div class="cal-title">${movie.icon} ${movie.title}</div>
+        <div style="font-size: 0.68rem; color: var(--text-dim); margin-bottom: 4px;">
+          ${movie.genreCategory}
+        </div>
         <div class="cal-meta">
           <span>${movie.runtime}m</span>
-          <span style="font-size: 0.68rem; color: ${movie.status === 'First Watch' ? '#34d399' : '#fb923c'};">${movie.status}</span>
+          <span class="scare-badge scare-level-${movie.scareRating}" style="font-size: 0.65rem; padding: 1px 5px;">
+            🎃 ${movie.scareRating}/5
+          </span>
         </div>
       </div>
     `;
   });
 
-  // Trailing blanks to complete 35 cells (5 full weeks of 7)
   const trailingBlanks = (7 - ((leadingBlanks + 31) % 7)) % 7;
   for (let i = 0; i < trailingBlanks; i++) {
     html += `<div class="calendar-cell" style="opacity: 0.15; cursor: default; background: rgba(0,0,0,0.2);">
@@ -407,19 +589,27 @@ function renderTimelineView() {
   const movies = getFilteredMovies();
   container.innerHTML = movies.map(movie => {
     const isWatched = state.watchedIds.has(movie.id);
+    const { average, count } = getMovieRatingData(movie.id);
+
     return `
       <div class="timeline-row ${isWatched ? 'is-watched' : ''}" onclick="openMovieModal(${movie.id})">
         <button class="watch-checkbox-btn ${isWatched ? 'checked' : ''}" 
-                onclick="event.stopPropagation(); toggleWatched(${movie.id})">
+                onclick="event.stopPropagation(); toggleWatched(${movie.id})"
+                title="Mark watched on your device">
           ${isWatched ? '✓' : '○'}
         </button>
         <span style="font-weight: 700; color: var(--pumpkin-400); font-size: 0.85rem;">${movie.date}</span>
         <div class="timeline-title-group">
           <span class="timeline-title">${movie.icon} ${movie.title} (${movie.year})</span>
-          <span class="timeline-sub">${movie.notes}</span>
+          <span class="timeline-sub">${movie.synopsis}</span>
         </div>
-        <span class="timeline-runtime" style="color: var(--text-muted); font-size: 0.85rem;">⏱ ${movie.runtime} min</span>
-        <span class="timeline-status" style="font-size: 0.78rem; color: ${movie.status === 'First Watch' ? '#34d399' : '#fb923c'};">${movie.status}</span>
+        <span class="timeline-runtime" style="color: var(--text-muted); font-size: 0.85rem;">⏱ ${movie.runtime}m</span>
+        <span class="timeline-scare">
+          <span class="scare-badge scare-level-${movie.scareRating}">🎃 ${movie.scareRating}/5</span>
+        </span>
+        <span class="timeline-status" style="font-size: 0.78rem; color: ${count > 0 ? '#facc15' : (movie.status === 'First Watch' ? '#34d399' : '#fb923c')};">
+          ${count > 0 ? `★ ${average} (${count})` : movie.status}
+        </span>
         <span style="color: var(--text-dim); font-size: 0.85rem;">➔</span>
       </div>
     `;
@@ -427,60 +617,89 @@ function renderTimelineView() {
 }
 
 // --------------------------------------------------------------------------
-// TONIGHT'S FEATURE HERO CALCULATOR
+// TONIGHT'S FEATURE HERO CALCULATOR (ORIGINAL SCREENSHOT 2 LAYOUT)
 // --------------------------------------------------------------------------
+function setHeroMode(mode) {
+  state.heroMode = mode;
+  renderHeroSpotlight();
+}
+
 function renderHeroSpotlight() {
   const heroContainer = document.getElementById('hero-spotlight');
   if (!heroContainer) return;
 
-  // Detect current date or default to the next unwatched movie
   const today = new Date();
-  const currentMonth = today.getMonth(); // 9 is October (0-indexed)
-  const currentDay = today.getDate();
+  const currentMonth = today.getMonth(); // 9 is October
+  const currentDay = (currentMonth === 9) ? today.getDate() : 2;
 
   let featuredMovie = null;
 
-  if (currentMonth === 9 && currentDay >= 1 && currentDay <= 31) {
-    featuredMovie = HALLOWEEN_MOVIES.find(m => m.dayNumber === currentDay);
-  }
-
-  // Fallback: pick the first unwatched movie, or Oct 1
-  if (!featuredMovie) {
+  if (state.heroMode === 'today') {
+    featuredMovie = HALLOWEEN_MOVIES.find(m => m.dayNumber === currentDay) || HALLOWEEN_MOVIES[0];
+  } else {
     featuredMovie = HALLOWEEN_MOVIES.find(m => !state.watchedIds.has(m.id)) || HALLOWEEN_MOVIES[0];
   }
 
   const isWatched = state.watchedIds.has(featuredMovie.id);
+  const { average, count } = getMovieRatingData(featuredMovie.id);
+  const latestReview = (state.reviews[featuredMovie.id] || [])[0];
 
   heroContainer.innerHTML = `
     <div class="hero-badge-row">
-      <span class="spotlight-pill">Tonight's Feature</span>
-      <span class="date-pill">🎃 ${featuredMovie.date} • ${featuredMovie.dayOfWeek}</span>
-      <span class="date-pill" style="border-color: ${featuredMovie.accentColor}; color: ${featuredMovie.accentColor};">
-        ${featuredMovie.themeTitle}
+      <div class="hero-mode-toggle">
+        <button class="hero-mode-btn ${state.heroMode === 'today' ? 'active' : ''}" onclick="setHeroMode('today')">
+          📅 Today's Date
+        </button>
+        <button class="hero-mode-btn ${state.heroMode === 'next' ? 'active' : ''}" onclick="setHeroMode('next')">
+          ⏩ Your Next Up
+        </button>
+      </div>
+
+      <span class="spotlight-pill">
+        ${state.heroMode === 'today' ? "TONIGHT'S SCHEDULED FILM" : "NEXT ON YOUR WATCHLIST"}
       </span>
+      <span class="date-pill">🎃 ${featuredMovie.date} • ${featuredMovie.dayOfWeek}</span>
+      <span class="genre-tag">${featuredMovie.genreCategory}</span>
+      <span class="scare-badge scare-level-${featuredMovie.scareRating}">
+        🎃 ${featuredMovie.scareRating}/5 ${featuredMovie.scareLabel}
+      </span>
+      ${count > 0 ? `<span class="date-pill" style="border-color: #facc15; color: #facc15;">★ ${average} (${count} reviews)</span>` : ''}
     </div>
 
     <div class="hero-content">
       <div>
         <h2 class="hero-title">${featuredMovie.icon} ${featuredMovie.title} (${featuredMovie.year})</h2>
         <div class="hero-meta">
-          <span class="hero-meta-item">⏱ <strong>${featuredMovie.runtime} mins</strong></span>
+          <span>⏱ <strong>${featuredMovie.runtime} mins</strong></span>
           <span>•</span>
-          <span class="hero-meta-item">🎬 Directed by <strong>${featuredMovie.director}</strong></span>
+          <span>🎬 Directed by <strong>${featuredMovie.director}</strong></span>
           <span>•</span>
-          <span class="hero-meta-item" style="color: ${featuredMovie.status === 'First Watch' ? '#34d399' : '#fb923c'};">
+          <span style="color: ${featuredMovie.status === 'First Watch' ? '#34d399' : '#fb923c'};">
             <strong>${featuredMovie.status}</strong>
           </span>
           <span>•</span>
-          <span class="hero-meta-item">${featuredMovie.subgenre}</span>
+          <span>${featuredMovie.subgenre}</span>
         </div>
-        <p class="hero-quote">"${featuredMovie.notes}"</p>
+
+        <p class="hero-synopsis">${featuredMovie.synopsis}</p>
+        
+        <div class="hero-rationale-box">
+          Curator's Note: "${featuredMovie.notes}"
+        </div>
+
+        ${latestReview ? `
+          <div class="hero-quote-box">
+            <strong style="color: #fff;">${latestReview.author}</strong> <span style="color: #facc15;">${'★'.repeat(latestReview.rating)}</span>: 
+            <span style="color: var(--text-secondary); font-style: italic;">"${latestReview.comment}"</span>
+          </div>
+        ` : ''}
+
         <div class="hero-actions">
           <button class="btn ${isWatched ? 'btn-watched' : 'btn-primary'}" onclick="toggleWatched(${featuredMovie.id})">
-            ${isWatched ? '✓ Watched Tonight' : 'Mark as Watched'}
+            ${isWatched ? '✓ Watched (Your List)' : 'Mark Watched (Your List)'}
           </button>
           <button class="btn btn-secondary" onclick="openMovieModal(${featuredMovie.id})">
-            View Details & Notes
+            View Details & Reviews (${count})
           </button>
           <a href="https://www.google.com/search?q=where+to+watch+${encodeURIComponent(featuredMovie.title)}+${featuredMovie.year}+movie" 
              target="_blank" rel="noopener" class="btn btn-secondary">
@@ -493,7 +712,46 @@ function renderHeroSpotlight() {
 }
 
 // --------------------------------------------------------------------------
-// STATS DASHBOARD UPDATE
+// CATCH-UP & FLEXIBILITY INDICATOR
+// --------------------------------------------------------------------------
+function updateCatchupIndicator() {
+  const indicator = document.getElementById('catchup-indicator');
+  if (!indicator) return;
+
+  const today = new Date();
+  const currentMonth = today.getMonth();
+  const currentDay = (currentMonth === 9) ? today.getDate() : 2;
+
+  const skippedUnwatched = HALLOWEEN_MOVIES.filter(m => m.dayNumber < currentDay && !state.watchedIds.has(m.id));
+
+  if (skippedUnwatched.length > 0) {
+    indicator.className = 'catchup-badge';
+    indicator.style.background = 'rgba(239, 68, 68, 0.2)';
+    indicator.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+    indicator.style.color = '#f87171';
+    indicator.style.cursor = 'pointer';
+    indicator.innerHTML = `⚠️ ${skippedUnwatched.length} Skipped Before Today (Click to Catch Up)`;
+    indicator.onclick = () => {
+      const statusFilter = document.getElementById('status-filter');
+      if (statusFilter) {
+        statusFilter.value = 'catchup';
+        state.statusFilter = 'catchup';
+        renderAllViews();
+        showToast(`Showing ${skippedUnwatched.length} skipped movies to catch up!`);
+      }
+    };
+  } else {
+    indicator.className = 'catchup-badge';
+    indicator.style.background = 'rgba(16, 185, 129, 0.2)';
+    indicator.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+    indicator.style.color = '#34d399';
+    indicator.innerHTML = `✓ On Track for October`;
+    indicator.onclick = null;
+  }
+}
+
+// --------------------------------------------------------------------------
+// STATS DASHBOARD UPDATE (Individual to user)
 // --------------------------------------------------------------------------
 function updateStats() {
   const totalMovies = HALLOWEEN_MOVIES.length;
@@ -518,11 +776,13 @@ function updateStats() {
   const progressBar = document.getElementById('marathon-progress-bar');
   const progressText = document.getElementById('progress-percentage');
   if (progressBar) progressBar.style.width = `${percentComplete}%`;
-  if (progressText) progressText.textContent = `${percentComplete}% Completed`;
+  if (progressText) progressText.textContent = `${percentComplete}% Completed by You`;
+
+  updateCatchupIndicator();
 }
 
 // --------------------------------------------------------------------------
-// WATCH STATUS TOGGLE
+// WATCH STATUS TOGGLE (Strictly Personal)
 // --------------------------------------------------------------------------
 function toggleWatched(id) {
   const movie = HALLOWEEN_MOVIES.find(m => m.id === id);
@@ -530,7 +790,7 @@ function toggleWatched(id) {
 
   if (state.watchedIds.has(id)) {
     state.watchedIds.delete(id);
-    showToast(`Unmarked "${movie.title}"`);
+    showToast(`Unmarked "${movie.title}" on your list`);
   } else {
     state.watchedIds.add(id);
     showToast(`🎃 Watched "${movie.title}"! (+${movie.runtime} mins)`);
@@ -541,17 +801,16 @@ function toggleWatched(id) {
   renderHeroSpotlight();
   renderAllViews();
 
-  // If currently opened in modal, update modal button
   const modalToggleBtn = document.getElementById('modal-watch-toggle');
   if (modalToggleBtn && state.currentModalMovieId === id) {
     const isW = state.watchedIds.has(id);
     modalToggleBtn.className = `btn ${isW ? 'btn-watched' : 'btn-primary'}`;
-    modalToggleBtn.textContent = isW ? '✓ Watched' : 'Mark as Watched';
+    modalToggleBtn.textContent = isW ? '✓ Watched by You' : 'Mark as Watched';
   }
 }
 
 // --------------------------------------------------------------------------
-// MODAL DIALOG MANAGEMENT
+// MODAL DIALOG MANAGEMENT (EXPANDED CARD USER LIKED)
 // --------------------------------------------------------------------------
 function openMovieModal(id) {
   const movie = HALLOWEEN_MOVIES.find(m => m.id === id);
@@ -570,41 +829,96 @@ function openMovieModal(id) {
   document.getElementById('modal-status-tag').textContent = movie.status;
   document.getElementById('modal-status-tag').className = `tag-badge ${movie.status === 'First Watch' ? 'tag-first-watch' : 'tag-rewatch'}`;
   
-  document.getElementById('modal-rationale').textContent = movie.notes;
+  // Genre & Scare Badges
+  document.getElementById('modal-genre-tag').textContent = movie.genreCategory;
+  const scareBadge = document.getElementById('modal-scare-badge');
+  scareBadge.className = `scare-badge scare-level-${movie.scareRating}`;
+  scareBadge.textContent = `🎃 ${movie.scareRating}/5 ${movie.scareLabel}`;
+
+  // Letterboxd Synopsis
+  document.getElementById('modal-synopsis').textContent = movie.synopsis;
+
+  // 2-Column Info Grid for Expanded Card
+  document.getElementById('modal-scare-title').textContent = `Scare Level ${movie.scareRating}/5 — ${movie.scareLabel}`;
+  document.getElementById('modal-scare-vibe').textContent = movie.scareVibe;
   document.getElementById('modal-backup').textContent = movie.backupAlternate;
 
-  // Modal watch toggle button
+  // Rationale
+  document.getElementById('modal-rationale').textContent = movie.notes;
+
+  // Personal watch toggle in modal
   const isWatched = state.watchedIds.has(id);
   const modalToggleBtn = document.getElementById('modal-watch-toggle');
   modalToggleBtn.className = `btn ${isWatched ? 'btn-watched' : 'btn-primary'}`;
-  modalToggleBtn.textContent = isWatched ? '✓ Watched' : 'Mark as Watched';
+  modalToggleBtn.textContent = isWatched ? '✓ Watched by You' : 'Mark as Watched';
   modalToggleBtn.onclick = () => toggleWatched(id);
 
   // Streaming link
   const streamLink = document.getElementById('modal-stream-link');
   streamLink.href = `https://www.google.com/search?q=where+to+watch+${encodeURIComponent(movie.title)}+${movie.year}+movie`;
 
-  // Ratings
-  const currentRating = state.ratings[id] || 0;
-  updateModalStars(currentRating);
+  // Pre-fill reviewer name if remembered
+  const nameInput = document.getElementById('reviewer-name');
+  if (nameInput) {
+    nameInput.value = state.userName || '';
+  }
 
-  // Notes
-  const notesTextarea = document.getElementById('modal-notes');
-  notesTextarea.value = state.notes[id] || '';
+  setFormStarRating(5);
+  renderModalReviews(id);
 
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
 
-function updateModalStars(rating) {
-  const stars = document.querySelectorAll('#modal-stars .star-btn');
-  stars.forEach((star, index) => {
-    if (index < rating) {
-      star.classList.add('active');
-    } else {
-      star.classList.remove('active');
-    }
-  });
+function renderModalReviews(movieId) {
+  const { average, count } = getMovieRatingData(movieId);
+  const avgNumElem = document.getElementById('modal-avg-rating');
+  const avgStarsElem = document.getElementById('modal-avg-stars');
+  const avgCountElem = document.getElementById('modal-reviews-count');
+  const feedElem = document.getElementById('reviews-feed');
+
+  if (count > 0) {
+    avgNumElem.textContent = average;
+    const rounded = Math.round(average);
+    avgStarsElem.textContent = '★'.repeat(rounded) + '☆'.repeat(5 - rounded);
+    avgCountElem.textContent = `${count} friend review${count > 1 ? 's' : ''}`;
+  } else {
+    avgNumElem.textContent = '0.0';
+    avgStarsElem.textContent = '☆☆☆☆☆';
+    avgCountElem.textContent = 'No reviews yet';
+  }
+
+  const reviews = state.reviews[movieId] || [];
+  if (reviews.length === 0) {
+    feedElem.innerHTML = `
+      <div class="empty-reviews-state">
+        👻 No reviews for this film yet. Be the first to share your thoughts!
+      </div>
+    `;
+    return;
+  }
+
+  feedElem.innerHTML = reviews.map(rev => {
+    const initial = rev.author ? rev.author.charAt(0).toUpperCase() : '?';
+    const stars = '★'.repeat(rev.rating || 5);
+
+    return `
+      <div class="review-item">
+        <div class="review-item-header">
+          <div class="author-badge">
+            <div class="avatar-circle">${initial}</div>
+            <span class="author-name">${rev.author}</span>
+            <span class="review-stars">${stars}</span>
+          </div>
+          <div class="review-actions-row">
+            <span class="review-time">${rev.date || 'Oct 2026'}</span>
+            <button class="delete-review-btn" onclick="deleteReview(${movieId}, '${rev.id}')" title="Delete this comment">🗑️</button>
+          </div>
+        </div>
+        <p class="review-body">${rev.comment}</p>
+      </div>
+    `;
+  }).join('');
 }
 
 function closeModal() {
