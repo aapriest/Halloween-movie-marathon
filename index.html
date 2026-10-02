@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HallowWatch 31 | 31 Days of Halloween Movie Marathon</title>
+  <meta name="description" content="Curated 31 Days of Halloween Movie Marathon portal with real-time tracking, atmospheric October themes, and cinephile notes.">
+  
+  <!-- Google Fonts: Cinzel for Gothic elegance + Plus Jakarta Sans for clean legibility -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Atmospheric Canvas Background for floating embers/fog -->
+  <canvas id="atmosphere-canvas"></canvas>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="site-header">
+      <div class="header-badge">
+        <span>🎃</span> 31 Nights of Autumn Horrors & Thrills
+      </div>
+      <h1 class="site-title">HallowWatch 31</h1>
+      <p class="site-subtitle">
+        Your curated October movie marathon journey—from cozy autumn folklore and 80s creature camp to psychological dread and All Hallows' Eve classics.
+      </p>
+    </header>
+
+    <!-- Marathon Stats Dashboard -->
+    <section class="marathon-stats-card">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-icon">🎬</span>
+          <span class="stat-value" id="stat-watched-count">0 / 31</span>
+          <span class="stat-label">Movies Watched</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-icon">⏱</span>
+          <span class="stat-value" id="stat-runtime-watched">0h 0m</span>
+          <span class="stat-label">Runtime Completed</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-icon">⏳</span>
+          <span class="stat-value" id="stat-runtime-remaining">55h 0m</span>
+          <span class="stat-label">Runtime Remaining</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-icon">✨</span>
+          <span class="stat-value" id="stat-breakdown">0 New / 0 Rewatch</span>
+          <span class="stat-label">Viewing Mix</span>
+        </div>
+      </div>
+
+      <div class="progress-container">
+        <div class="progress-header">
+          <span>Marathon Progression</span>
+          <span id="progress-percentage">0% Completed</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="marathon-progress-bar"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tonight's Feature Hero Spotlight -->
+    <section class="hero-spotlight" id="hero-spotlight">
+      <!-- Injected via app.js based on current October day / unwatched queue -->
+    </section>
+
+    <!-- Controls Section: Week Tabs + Filters + View Switcher -->
+    <section class="controls-section">
+      <!-- Week/Theme Ribbon -->
+      <div class="theme-ribbon" id="theme-ribbon">
+        <!-- Dynamically injected themes -->
+      </div>
+
+      <!-- Search, Filter & View Controls -->
+      <div class="filter-bar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" class="search-input" placeholder="Search by title, director, year, or keyword...">
+        </div>
+
+        <div class="filter-group">
+          <select id="status-filter" class="select-filter">
+            <option value="all">All Movies</option>
+            <option value="unwatched">⏳ Unwatched Only</option>
+            <option value="watched">✓ Watched Only</option>
+            <option value="first">✨ First Watches</option>
+            <option value="rewatch">🔄 Rewatches</option>
+          </select>
+
+          <select id="sort-select" class="select-filter">
+            <option value="date-asc">📅 Date (Oct 1 → 31)</option>
+            <option value="date-desc">📅 Date (Oct 31 → 1)</option>
+            <option value="runtime-asc">⏱ Runtime (Shortest)</option>
+            <option value="runtime-desc">⏱ Runtime (Longest)</option>
+            <option value="year-desc">🎞 Release Year (Newest)</option>
+            <option value="title">🔤 Title (A - Z)</option>
+          </select>
+
+          <div class="view-switcher">
+            <button class="view-btn active" data-view="grid" title="Grid Card View">
+              <span>⊞</span> Grid
+            </button>
+            <button class="view-btn" data-view="calendar" title="31-Day Calendar View">
+              <span>📅</span> Calendar
+            </button>
+            <button class="view-btn" data-view="timeline" title="Timeline Checklist">
+              <span>☰</span> Checklist
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main View 1: Card Grid View -->
+    <main id="grid-view" class="movies-grid">
+      <!-- Injected via app.js -->
+    </main>
+
+    <!-- Main View 2: Calendar View -->
+    <section id="calendar-view" class="calendar-view-container">
+      <div class="calendar-header-row">
+        <div>Sun</div>
+        <div>Mon</div>
+        <div>Tue</div>
+        <div>Wed</div>
+        <div>Thu</div>
+        <div>Fri</div>
+        <div>Sat</div>
+      </div>
+      <div class="calendar-grid" id="calendar-grid">
+        <!-- Injected via app.js -->
+      </div>
+    </section>
+
+    <!-- Main View 3: Timeline Checklist View -->
+    <section id="timeline-view" class="timeline-view-container">
+      <div class="timeline-list" id="timeline-list">
+        <!-- Injected via app.js -->
+      </div>
+    </section>
+  </div>
+
+  <!-- Detailed Movie Modal Drawer -->
+  <div class="modal-backdrop" id="movie-modal">
+    <div class="modal-dialog">
+      <button class="modal-close-btn" id="modal-close" aria-label="Close modal">✕</button>
+
+      <div class="modal-meta-bar">
+        <span class="date-pill" id="modal-day-badge">Day 1 • Oct 1</span>
+        <span class="date-pill" id="modal-theme-badge">Week 1</span>
+        <span class="tag-badge" id="modal-status-tag">First Watch</span>
+      </div>
+
+      <h2 class="modal-title cinzel" id="modal-title">Sleepy Hollow (1999)</h2>
+      <div class="modal-director" id="modal-director">Directed by Tim Burton</div>
+
+      <div class="modal-section">
+        <div class="modal-section-title">Why It's On The Schedule</div>
+        <p class="modal-rationale" id="modal-rationale"></p>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-title">Contingency Backup Recommendation</div>
+        <div class="modal-backup-card" id="modal-backup"></div>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-title">Personal Star Rating</div>
+        <div class="star-rating-control" id="modal-stars">
+          <span class="star-btn" data-star="1">★</span>
+          <span class="star-btn" data-star="2">★</span>
+          <span class="star-btn" data-star="3">★</span>
+          <span class="star-btn" data-star="4">★</span>
+          <span class="star-btn" data-star="5">★</span>
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-title">Your Viewing Notes & Reaction</div>
+        <textarea id="modal-notes" class="notes-textarea" placeholder="Record your thoughts, favorite kills, scariest scenes, or candy pairings..."></textarea>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-subtle);">
+        <span id="modal-runtime" style="color: var(--text-muted); font-size: 0.85rem;">⏱ Runtime: 105 mins</span>
+        <div style="display: flex; gap: 10px;">
+          <a id="modal-stream-link" href="#" target="_blank" rel="noopener" class="btn btn-secondary">
+            Stream Options ↗
+          </a>
+          <button id="modal-watch-toggle" class="btn btn-primary">
+            Mark as Watched
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="movies-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
